@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Petualangan Nara: Misi Pintar</title>
+<style>
+:root{--navy:#183153;--blue:#3478f6;--yellow:#ffd34e;--pink:#ff719a;--green:#37c98a;--cream:#fff9e8}
+*{box-sizing:border-box} body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Arial,sans-serif;background:linear-gradient(135deg,#dff5ff,#fff3cf);color:var(--navy);min-height:100vh}
+.wrap{max-width:1000px;margin:auto;padding:16px}
+header{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+h1{font-size:clamp(1.35rem,3vw,2rem);margin:6px 0} .tag{background:#fff;border:2px solid #cfe5ff;border-radius:999px;padding:8px 12px;font-weight:700}
+.panel{background:#ffffffdf;border:2px solid #d8e8ff;border-radius:20px;padding:14px;box-shadow:0 8px 22px #18315312;margin:12px 0}
+.stats{display:flex;gap:10px;flex-wrap:wrap}.stat{background:#f1f7ff;border-radius:12px;padding:8px 12px;font-weight:800}
+.gamebox{position:relative;overflow:hidden;border-radius:20px;border:3px solid #fff;box-shadow:0 10px 25px #18315322;background:#a8e7ff}
+canvas{display:block;width:100%;height:auto;touch-action:manipulation}
+.controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:12px}
+button{border:0;border-radius:14px;padding:12px 16px;font-size:1rem;font-weight:800;background:var(--blue);color:#fff;cursor:pointer;box-shadow:0 4px 0 #1d51b5;touch-action:manipulation}
+button:active{transform:translateY(2px);box-shadow:0 2px 0 #1d51b5}button.secondary{background:#fff;color:var(--navy);box-shadow:0 4px 0 #cfdaea;border:1px solid #dbe5f3}
+button.gold{background:#f3ae13;box-shadow:0 4px 0 #b87800;color:#382600}
+.help{font-size:.95rem;line-height:1.5}.hidden{display:none!important}
+.overlay{position:absolute;inset:0;background:#15345bc9;color:white;display:flex;align-items:center;justify-content:center;padding:16px;text-align:center}
+.modal{max-width:530px;background:#fff;color:var(--navy);padding:22px;border-radius:22px;box-shadow:0 12px 40px #0003}
+.modal h2{margin-top:0}.modal p{line-height:1.5}
+#questionText{font-size:1.2rem;font-weight:800;margin:8px 0 14px}
+.answers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.answers button{background:#edf4ff;color:var(--navy);box-shadow:0 4px 0 #c8daf8;border:2px solid #d8e6ff}
+.answers button:hover{background:#dceaff}
+#feedback{font-weight:800;min-height:1.5em;margin-top:10px}
+footer{text-align:center;font-size:.85rem;opacity:.8;padding:12px}
+@media(max-width:560px){.wrap{padding:10px}.panel{padding:10px}.answers{grid-template-columns:1fr 1fr}button{padding:11px 12px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div><div class="tag">🎒 GAME EDUKASI • KELAS 5 SD</div><h1>🌟 Petualangan Nara: Misi Pintar</h1></div>
+  <div class="tag">📚 Matematika • Platformer</div>
+</header>
+<section class="panel">
+  <div class="stats">
+    <div class="stat">⭐ Skor: <span id="score">0</span></div>
+    <div class="stat">🧩 Misi: <span id="progress">0</span>/5</div>
+    <div class="stat">❤️ Kesempatan: <span id="lives">3</span></div>
+  </div>
+  <p class="help">Bantu Nara melompat melewati rintangan dan mengambil bintang. Setiap bintang membuka soal matematika. Jawab dengan benar untuk mendapatkan poin!</p>
+</section>
+<div class="gamebox">
+  <canvas id="game" width="900" height="440" aria-label="Permainan platformer Nara"></canvas>
+  <div id="startOverlay" class="overlay"><div class="modal">
+    <h2>🚀 Siap memulai misi?</h2>
+    <p>Gerakkan Nara, kumpulkan 5 bintang, dan jawab soal matematika. Hati-hati, jangan jatuh dari platform!</p>
+    <p><b>Komputer:</b> tombol ← → atau A/D untuk bergerak, Spasi/↑ untuk melompat.<br><b>HP/Tablet:</b> gunakan tombol arah di bawah.</p>
+    <button id="startBtn">Mulai Petualangan</button>
+  </div></div>
+  <div id="questionOverlay" class="overlay hidden"><div class="modal">
+    <div class="tag">🧠 Tantangan Matematika</div>
+    <div id="questionText"></div>
+    <div class="answers" id="answers"></div>
+    <div id="feedback" role="status"></div>
+    <button id="continueBtn" class="gold hidden">Lanjutkan!</button>
+  </div></div>
+  <div id="endOverlay" class="overlay hidden"><div class="modal">
+    <h2 id="endTitle">Misi Selesai!</h2><p id="endMessage"></p>
+    <button id="restartBtn">Main Lagi</button>
+  </div></div>
+</div>
+<div class="controls">
+  <button id="leftBtn" class="secondary" aria-label="Bergerak ke kiri">⬅️ Kiri</button>
+  <button id="jumpBtn" class="gold" aria-label="Melompat">⬆️ Lompat</button>
+  <button id="rightBtn" class="secondary" aria-label="Bergerak ke kanan">Kanan ➡️</button>
+  <button id="pauseBtn" class="secondary">⏸ Jeda</button>
+</div>
+<section class="panel help">
+  <b>🎯 Cara bermain</b>
+  <ol>
+    <li>Tekan <b>Mulai Petualangan</b>.</li>
+    <li>Bergerak dan melompat menuju bintang kuning.</li>
+    <li>Setiap bintang memunculkan satu soal. Pilih jawaban yang tepat.</li>
+    <li>Kumpulkan 5 bintang untuk menyelesaikan misi. Kamu punya 3 kesempatan.</li>
+  </ol>
+  <b>💡 Materi:</b> operasi hitung, pecahan, KPK, luas, dan keliling.
+</section>
+<footer>Dibuat untuk pembelajaran Matematika kelas 5 SD • Petualangan Nara</footer>
+</div>
+<script>
+(() => {
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const scoreEl=document.getElementById('score'),progressEl=document.getElementById('progress'),livesEl=document.getElementById('lives');
+const startOverlay=document.getElementById('startOverlay'),questionOverlay=document.getElementById('questionOverlay'),endOverlay=document.getElementById('endOverlay');
+const questionText=document.getElementById('questionText'),answersEl=document.getElementById('answers'),feedback=document.getElementById('feedback'),continueBtn=document.getElementById('continueBtn');
+const W=900,H=440,worldW=1900,gravity=.58;
+let running=false,paused=false,gameOver=false,score=0,progress=0,lives=3,camera=0,frame=0,questionOpen=false;
+const keys={left:false,right:false};
+const player={x:45,y:300,w:36,h:48,vx:0,vy:0,onGround:false,invuln:0};
+const platforms=[
+{x:0,y:390,w:260,h:50},{x:310,y:340,w:150,h:24},{x:505,y:292,w:140,h:24},
+{x:690,y:350,w:180,h:24},{x:925,y:300,w:155,h:24},{x:1130,y:350,w:150,h:24},
+{x:1330,y:285,w:160,h:24},{x:1540,y:340,w:180,h:24},{x:1770,y:390,w:180,h:50}
+];
+const stars=[
+{x:180,y:340,got:false},{x:385,y:290,got:false},{x:570,y:245,got:false},
+{x:990,y:250,got:false},{x:1410,y:235,got:false}
+];
+const questions=[
+{q:"36 ÷ 4 = ...",a:["8","9","10","12"],c:1,why:"36 dibagi 4 sama dengan 9."},
+{q:"1/2 + 1/4 = ...",a:["2/6","3/4","1/6","2/4"],c:1,why:"1/2 = 2/4, jadi 2/4 + 1/4 = 3/4."},
+{q:"KPK dari 4 dan 6 adalah ...",a:["8","10","12","24"],c:2,why:"Kelipatan persekutuan terkecilnya adalah 12."},
+{q:"Persegi dengan sisi 5 cm memiliki luas ...",a:["10 cm²","20 cm²","25 cm²","30 cm²"],c:2,why:"Luas persegi = sisi × sisi = 5 × 5 = 25 cm²."},
+{q:"Keliling persegi panjang 8 cm × 3 cm adalah ...",a:["11 cm","22 cm","24 cm","30 cm"],c:1,why:"Keliling = 2 × (8 + 3) = 22 cm."}
+];
+let currentQuestion=0;
+function reset(){
+ running=false;paused=false;gameOver=false;score=0;progress=0;lives=3;camera=0;frame=0;questionOpen=false;currentQuestion=0;
+ player.x=45;player.y=300;player.vx=0;player.vy=0;player.onGround=false;player.invuln=0;
+ stars.forEach(s=>s.got=false);scoreEl.textContent=score;progressEl.textContent=progress;livesEl.textContent=lives;
+ startOverlay.classList.remove('hidden');questionOverlay.classList.add('hidden');endOverlay.classList.add('hidden');
+ document.getElementById('pauseBtn').textContent='⏸ Jeda';draw();
+}
+function start(){startOverlay.classList.add('hidden');running=true;paused=false;gameOver=false;last=performance.now();requestAnimationFrame(loop)}
+function end(win){
+ running=false;gameOver=true;endOverlay.classList.remove('hidden');
+ document.getElementById('endTitle').textContent=win?'🏆 Hebat! Misi Berhasil!':'💪 Coba Lagi, Penjelajah!';
+ document.getElementById('endMessage').textContent=win?`Nara berhasil menyelesaikan 5 misi! Skor akhir kamu ${score}. Terus berlatih matematika, ya!`:`Skor kamu ${score}. Jangan menyerah—coba lagi dan kumpulkan bintang sambil menghindari jatuh.`;
+}
+function openQuestion(i){
+ questionOpen=true;running=false;currentQuestion=i;
+ questionText.textContent=questions[i].q;answersEl.innerHTML='';feedback.textContent='';continueBtn.classList.add('hidden');
+ questions[i].a.forEach((ans,j)=>{const b=document.createElement('button');b.textContent=ans;b.onclick=()=>answer(j);answersEl.appendChild(b)});
+ questionOverlay.classList.remove('hidden');
+}
+function answer(j){
+ if(!questionOpen)return;
+ const q=questions[currentQuestion];
+ [...answersEl.querySelectorAll('button')].forEach(b=>b.disabled=true);
+ if(j===q.c){score+=20;feedback.textContent='✅ Benar! '+q.why;feedback.style.color='#16875a';}
+ else {lives--;feedback.textContent='Belum tepat. '+q.why;feedback.style.color='#bd3b4d';}
+ scoreEl.textContent=score;livesEl.textContent=lives;
+ continueBtn.classList.remove('hidden');
+}
+continueBtn.onclick=()=>{
+ questionOpen=false;questionOverlay.classList.add('hidden');
+ if(lives<=0){end(false);return}
+ if(progress>=5){end(true);return}
+ running=true;last=performance.now();requestAnimationFrame(loop);
+};
+function drawBackground(){
+ const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,'#8bdcff');grad.addColorStop(1,'#e6fbff');ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+ // clouds
+ ctx.fillStyle='#ffffffb8';
+ for(let i=0;i<7;i++){let x=((i*190-camera*.22)%(W+150)+W+150)%(W+150)-60;let y=45+(i%3)*34;ctx.beginPath();ctx.arc(x,y,22,0,Math.PI*2);ctx.arc(x+23,y-8,27,0,Math.PI*2);ctx.arc(x+48,y,19,0,Math.PI*2);ctx.fill()}
+ // distant hills
+ ctx.fillStyle='#8bd8b0';ctx.beginPath();ctx.moveTo(0,360);for(let x=0;x<=W;x+=80)ctx.lineTo(x,310+Math.sin((x+camera*.18)/95)*28);ctx.lineTo(W,H);ctx.lineTo(0,H);ctx.fill();
+}
+function draw(){
+ drawBackground();
+ ctx.save();ctx.translate(-camera,0);
+ platforms.forEach((p,i)=>{ctx.fillStyle='#8c5b3e';ctx.fillRect(p.x,p.y,p.w,p.h);ctx.fillStyle='#36b86d';ctx.fillRect(p.x,p.y,p.w,8);ctx.fillStyle='#b9784e';for(let x=p.x+12;x<p.x+p.w;x+=32)ctx.fillRect(x,p.y+15,18,4)});
+ stars.forEach(s=>{if(s.got)return;ctx.save();ctx.translate(s.x,s.y+Math.sin(frame/12+s.x)*4);ctx.fillStyle='#ffd53d';ctx.strokeStyle='#e5a600';ctx.lineWidth=2;ctx.beginPath();for(let k=0;k<10;k++){let r=k%2===0?17:8;let a=-Math.PI/2+k*Math.PI/5;ctx.lineTo(Math.cos(a)*r,Math.sin(a)*r)}ctx.closePath();ctx.fill();ctx.stroke();ctx.restore()});
+ // Nara character
+ ctx.save();ctx.translate(player.x,player.y);
+ ctx.fillStyle=player.invuln>0&&Math.floor(frame/4)%2?'#ffffff':'#ff719a';ctx.fillRect(5,18,27,28);
+ ctx.fillStyle='#f3bd8b';ctx.beginPath();ctx.arc(18,13,14,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#49342d';ctx.beginPath();ctx.arc(18,8,14,Math.PI,Math.PI*2);ctx.fill();ctx.fillRect(4,7,8,10);
+ ctx.fillStyle='#183153';ctx.beginPath();ctx.arc(13,14,2,0,Math.PI*2);ctx.arc(23,14,2,0,Math.PI*2);ctx.fill();
+ ctx.strokeStyle='#183153';ctx.lineWidth=2;ctx.beginPath();ctx.arc(18,18,5,0,Math.PI);ctx.stroke();
+ ctx.fillStyle='#3478f6';ctx.fillRect(3,43,12,5);ctx.fillRect(21,43,12,5);
+ ctx.restore();
+ ctx.restore();
+ // instructions
+ ctx.fillStyle='#183153';ctx.font='bold 15px system-ui';ctx.fillText('Ambil bintang kuning ⭐',18,25);
+}
+function collide(){
+ player.onGround=false;
+ platforms.forEach(p=>{
+  if(player.x+player.w>p.x&&player.x<p.x+p.w&&player.y+player.h>p.y&&player.y+player.h<p.y+p.h+14&&player.vy>=0){
+   player.y=p.y-player.h;player.vy=0;player.onGround=true;
+  }
+ });
+}
+function update(){
+ frame++;
+ player.vx=(keys.left?-4.2:0)+(keys.right?4.2:0);
+ player.x+=player.vx;
+ if(player.x<0)player.x=0;
+ if(player.x>worldW-player.w)player.x=worldW-player.w;
+ player.vy+=gravity;player.y+=player.vy;collide();
+ if(player.invuln>0)player.invuln--;
+ if(player.y>H+100){lives--;livesEl.textContent=lives;player.x=Math.max(30,player.x-100);player.y=260;player.vy=0;player.invuln=80;if(lives<=0){end(false);return}}
+ stars.forEach((s,i)=>{if(!s.got&&Math.abs((player.x+player.w/2)-s.x)<28&&Math.abs((player.y+player.h/2)-s.y)<38){s.got=true;progress++;progressEl.textContent=progress;openQuestion(i)}});
+ camera=Math.max(0,Math.min(worldW-W,player.x-W*.35));
+}
+let last=0;
+function loop(t){if(!running||paused||questionOpen||gameOver)return;const dt=Math.min(2,(t-last)/16.67||1);last=t;for(let i=0;i<dt;i++)update();draw();if(running)requestAnimationFrame(loop)}
+function jump(){if(running&&!paused&&player.onGround){player.vy=-12.5;player.onGround=false}}
+function bindHold(id,key){const el=document.getElementById(id);const on= e=>{e.preventDefault();keys[key]=true};const off=e=>{e.preventDefault();keys[key]=false};el.addEventListener('pointerdown',on);['pointerup','pointerleave','pointercancel'].forEach(ev=>el.addEventListener(ev,off))}
+bindHold('leftBtn','left');bindHold('rightBtn','right');
+document.getElementById('jumpBtn').addEventListener('pointerdown',e=>{e.preventDefault();jump()});
+document.getElementById('startBtn').onclick=start;document.getElementById('restartBtn').onclick=reset;
+document.getElementById('pauseBtn').onclick=()=>{if(!running&&!paused)return;paused=!paused;document.getElementById('pauseBtn').textContent=paused?'▶ Lanjut':'⏸ Jeda';if(!paused){last=performance.now();requestAnimationFrame(loop)}};
+window.addEventListener('keydown',e=>{if(['ArrowLeft','ArrowRight','ArrowUp',' ','a','A','d','D','w','W'].includes(e.key))e.preventDefault();if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A')keys.left=true;if(e.key==='ArrowRight'||e.key==='d'||e.key==='D')keys.right=true;if(e.key==='ArrowUp'||e.key===' '||e.key==='w'||e.key==='W')jump();if(e.key==='Escape'&&running)document.getElementById('pauseBtn').click()});
+window.addEventListener('keyup',e=>{if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A')keys.left=false;if(e.key==='ArrowRight'||e.key==='d'||e.key==='D')keys.right=false});
+reset();
+})();
+</script>
+</body>
+</html>
